@@ -7,16 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// One row per Discord server the bot is in.
 model Guild {
   id               String   @id // Discord guild ID
   adminRoleId      String? // role allowed to run admin time commands
   logChannelId     String? // where weekly reset summaries get posted
   currentWeekStart DateTime @default(now())
-  // ^ marks the start of the "current" tracking week. Reset job advances
-  //   this forward every Friday 3am America/New_York instead of deleting
-  //   history, so old weeks stay queryable (handy for a future dashboard).
-  createdAt        DateTime @default(now())
+
+  // Dashboard customization
+  dashboardTitle       String  @default("UniBot Dashboard")
+  dashboardSubtitle    String  @default("Title")
+  dashboardColor       String  @default("#5865F2")
+  dashboardChannelId   String?
+  dashboardMessageId   String?
+
+  createdAt DateTime @default(now())
 
   timeEntries TimeEntry[]
   timeTotals  TimeTotal[]
