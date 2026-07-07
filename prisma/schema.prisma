@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// One row per Discord server the bot is in.
+model Guild {
+  id               String   @id // Discord guild ID
+  adminRoleId      String? // role allowed to run admin time commands
+  logChannelId     String? // where weekly reset summaries get posted
+  currentWeekStart DateTime @default(now())
+  // ^ marks the start of the "current" tracking week. Reset job advances
+  //   this forward every Friday 3am America/New_York instead of deleting
+  //   history, so old weeks stay queryable (handy for a future dashboard).
+  createdAt        DateTime @default(now())
+
+  timeEntries TimeEntry[]
+  timeTotals  TimeTotal[]
+  appOptions  AppOption[]
+  responses   AppResponse[]
+}
+
+// One row per clock-in/clock-out session.
+model TimeEntry {
+  id         Int       @id @default(autoincrement())
+  guildId    String
+  userId     String
+  clockInAt  DateTime
+  clockOutAt DateTime?
+  status     String // "in" | "out"
+  guild      Guild     @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, userId, status])
+}
+
+// Running total per user per tracking week. Upserted as sessions close
+// and by manual add/remove time commands.
+model TimeTotal {
+  id           Int      @id @default(autoincrement())
+  guildId      String
+  userId       String
+  weekStart    DateTime
+  totalSeconds Int      @default(0)
+  guild        Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, userId, weekStart])
+}
+
+// A configurable option shown in the /apply select menu.
+model AppOption {
+  id              Int      @id @default(autoincrement())
+  guildId         String
+  value           String // stable key used in the select menu, unique per guild
+  label           String // shown to the user in the dropdown
+  questions       Json // string[] of up to 5 questions (modal limit)
+  targetChannelId String // where completed submissions get posted
+  guild           Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, value])
+}
+
+// A completed submission, kept for history/auditing.
+model AppResponse {
+  id           Int      @id @default(autoincrement())
+  guildId      String
+  userId       String
+  optionValue  String
+  optionLabel  String
+  answers      Json
+  submittedAt  DateTime @default(now())
+  guild        Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+}
