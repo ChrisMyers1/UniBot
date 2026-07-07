@@ -20,4 +20,5 @@ jobs:
             cd /opt/UniBot
             git pull origin main
             docker compose up -d --build
+            docker compose exec -T bot npx prisma migrate deploy
             docker image prune -f
