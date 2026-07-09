@@ -42,7 +42,7 @@ export async function updateDashboard(guildId: string) {
 
     if (clockedIn.length > 0) {
       userList = clockedIn
-        .map((entry) => `🟢 <@${entry.userId}>`)
+        .map((entry: { userId: string }) => `🟢 <@${entry.userId}>`)
         .join("\n");
     }
 
