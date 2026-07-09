@@ -21,4 +21,5 @@ jobs:
             git pull origin main
             docker compose up -d --build
             docker compose exec -T bot npx prisma migrate deploy
+            docker compose exec -T bot npm run deploy-commands
             docker image prune -f

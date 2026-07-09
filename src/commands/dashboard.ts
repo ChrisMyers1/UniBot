@@ -21,13 +21,13 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((sub) =>
     sub
       .setName("setup")
-      .setDescription("Create the UniBot dashboard")
+      .setDescription("Create or update the UniBot dashboard")
 
       .addChannelOption((option) =>
         option
           .setName("channel")
           .setDescription("Channel to place the dashboard")
-          .setRequired(true)
+          .setRequired(false)
       )
 
       .addStringOption((option) =>
@@ -47,7 +47,7 @@ export const data = new SlashCommandBuilder()
       .addStringOption((option) =>
         option
           .setName("color")
-          .setDescription("Embed color")
+          .setDescription("Dashboard color hex (example #5865F2)")
           .setRequired(false)
       )
   );
@@ -59,14 +59,47 @@ export async function execute(
 
   if (!interaction.guild) {
     return interaction.reply({
-      content: "This command can only be used in a server.",
+      content: "❌ This command can only be used inside a server.",
       ephemeral: true,
     });
   }
 
 
+  if (interaction.options.getSubcommand() !== "setup") {
+    return interaction.reply({
+      content: "❌ Unknown dashboard command.",
+      ephemeral: true,
+    });
+  }
+
+
+  const selectedChannel =
+    interaction.options.getChannel("channel");
+
+
   const channel =
-    interaction.options.getChannel("channel") as TextChannel;
+    selectedChannel ?? interaction.channel;
+
+
+  if (!channel) {
+    return interaction.reply({
+      content:
+        "❌ Could not determine a channel.",
+      ephemeral: true,
+    });
+  }
+
+
+  if (!("send" in channel)) {
+    return interaction.reply({
+      content:
+        "❌ Please select a text channel.",
+      ephemeral: true,
+    });
+  }
+
+
+  const textChannel = channel as TextChannel;
 
 
   const title =
@@ -84,83 +117,129 @@ export async function execute(
     ?? "#5865F2";
 
 
-  const embed = new EmbedBuilder()
-    .setTitle(title)
-    .setDescription(
-      `${subtitle}\n\n🟢 **Currently Clocked In**\n\nNo users currently clocked in.`
-    )
-    .setColor(color as any)
-    .setFooter({
-      text: "UniBot Time Tracking",
-    })
-    .setTimestamp();
+  await interaction.deferReply({
+    ephemeral: true,
+  });
 
 
 
-  const buttons =
-    new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
+  try {
 
-        new ButtonBuilder()
-          .setCustomId("clock_in")
-          .setLabel("Clock In")
-          .setEmoji("🟢")
-          .setStyle(ButtonStyle.Success),
-
-        new ButtonBuilder()
-          .setCustomId("clock_out")
-          .setLabel("Clock Out")
-          .setEmoji("🔴")
-          .setStyle(ButtonStyle.Danger),
-
-        new ButtonBuilder()
-          .setCustomId("my_time")
-          .setLabel("My Time")
-          .setEmoji("⏱️")
-          .setStyle(ButtonStyle.Primary)
-
-      );
+    const embed =
+      new EmbedBuilder()
+        .setTitle(title)
+        .setDescription(
+          [
+            subtitle,
+            "",
+            "🟢 **Currently Clocked In**",
+            "",
+            "No users currently clocked in.",
+          ].join("\n")
+        )
+        .setColor(color as any)
+        .setFooter({
+          text: "UniBot Time Tracking",
+        })
+        .setTimestamp();
 
 
-  const message =
-    await channel.send({
-      embeds:[embed],
-      components:[buttons],
+
+    const buttons =
+      new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(
+
+          new ButtonBuilder()
+            .setCustomId("clock_in")
+            .setLabel("Clock In")
+            .setEmoji("🟢")
+            .setStyle(ButtonStyle.Success),
+
+
+          new ButtonBuilder()
+            .setCustomId("clock_out")
+            .setLabel("Clock Out")
+            .setEmoji("🔴")
+            .setStyle(ButtonStyle.Danger),
+
+
+          new ButtonBuilder()
+            .setCustomId("my_time")
+            .setLabel("My Time")
+            .setEmoji("⏱️")
+            .setStyle(ButtonStyle.Primary)
+
+        );
+
+
+
+    const message =
+      await textChannel.send({
+        embeds: [
+          embed,
+        ],
+        components: [
+          buttons,
+        ],
+      });
+
+
+
+    await prisma.guild.upsert({
+
+      where: {
+        id: interaction.guild.id,
+      },
+
+
+      update: {
+
+        dashboardTitle: title,
+        dashboardSubtitle: subtitle,
+        dashboardColor: color,
+        dashboardChannelId: textChannel.id,
+        dashboardMessageId: message.id,
+
+      },
+
+
+      create: {
+
+        id: interaction.guild.id,
+
+        dashboardTitle: title,
+        dashboardSubtitle: subtitle,
+        dashboardColor: color,
+
+        dashboardChannelId: textChannel.id,
+        dashboardMessageId: message.id,
+
+      },
+
     });
 
 
 
-  await prisma.guild.upsert({
-
-    where:{
-      id: interaction.guild.id,
-    },
-
-    update:{
-      dashboardTitle:title,
-      dashboardSubtitle:subtitle,
-      dashboardColor:color,
-      dashboardChannelId:channel.id,
-      dashboardMessageId:message.id,
-    },
-
-    create:{
-      id:interaction.guild.id,
-      dashboardTitle:title,
-      dashboardSubtitle:subtitle,
-      dashboardColor:color,
-      dashboardChannelId:channel.id,
-      dashboardMessageId:message.id,
-    }
-
-  });
+    await interaction.editReply({
+      content:
+        `✅ UniBot dashboard created in ${textChannel}.`,
+    });
 
 
 
-  await interaction.reply({
-    content:
-      `✅ Dashboard created in ${channel}`,
-    ephemeral:true,
-  });
+  } catch (error) {
+
+    console.error(
+      "Dashboard setup error:",
+      error
+    );
+
+
+    await interaction.editReply({
+      content:
+        "❌ Something went wrong creating the dashboard.",
+    });
+
+  }
 
 }
