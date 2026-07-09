@@ -6,7 +6,7 @@ import type { Command } from "./types";
 import { scheduleWeeklyReset } from "./jobs/weeklyReset";
 import * as interactionCreate from "./events/interactionCreate";
 
-const client = new Client({
+export const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,

@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import { prisma, ensureGuild } from "../lib/db";
+import { updateDashboard } from "../lib/dashboard";
 
 export const data = new SlashCommandBuilder()
   .setName("clockin")
@@ -25,6 +26,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   await prisma.timeEntry.create({
     data: { guildId, userId, clockInAt: new Date(), status: "in" },
   });
+
+  await updateDashboard(guildId);
 
   await interaction.reply(`🟢 <@${userId}> clocked in.`);
 }

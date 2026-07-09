@@ -10,10 +10,15 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: ChatInputCommandInteraction) {
   const guildId = interaction.guildId!;
   const userId = interaction.user.id;
+
   await ensureGuild(guildId);
 
   const openEntry = await prisma.timeEntry.findFirst({
-    where: { guildId, userId, status: "in" },
+    where: {
+      guildId,
+      userId,
+      status: "in",
+    },
   });
 
   if (!openEntry) {
@@ -32,7 +37,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     new Date()
   );
 
-  await interaction.reply(
-    `🔴 <@${userId}> clocked out. Session: ${formatDuration(seconds)}`
-  );
+  await interaction.reply({
+    content: `🔴 Clocked out!\n⏱️ Time Logged: **${formatDuration(seconds)}**`,
+    ephemeral: true,
+  });
 }
